@@ -1,0 +1,15 @@
+// app global css in SCSS form
+.container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 50px);
+
+    .map {
+        background-color: white;
+        height: 400px;
+    }
+
+    .list {
+        flex:1;
+    }
+}
