@@ -100,6 +100,18 @@ export default defineComponent({
         initMapMarkers(state, mapMarkers) {
           state.mapMarkers = mapMarkers;
         },
+        sortMapMarkers(state) {
+          state.mapMarkers = state.mapMarkers
+            .map((marker, index) => ({
+              ...marker,
+              distance: haversine(marker.position, state.myLocation.position),
+            }))
+            .sort((a, b) => a.distance - b.distance)
+            .map((marker, index) => ({
+              ...marker,
+              label: String.fromCharCode(65 + index),
+            }));
+        },
         updateMapMarkers(state, data) {
           if (state.mapMarkers[data.id].active === true) {
             state.mapMarkers[data.id].active = false;
@@ -118,10 +130,11 @@ export default defineComponent({
               state.mapMarkers[data.id].position.lat;
             state.centerLocation.position.lng =
               state.mapMarkers[data.id].position.lng;
-            mapRef.value.map.panTo({
-              lat: state.centerLocation.position.lat,
-              lng: state.centerLocation.position.lng,
-            });
+
+            panToMap(
+              state.centerLocation.position.lat,
+              state.centerLocation.position.lng
+            );
           }
         },
         initMyLocation(state, data) {
@@ -139,7 +152,7 @@ export default defineComponent({
             lng: position.coords.longitude,
           });
 
-          initMapMarkers();
+          store.commit('sortMapMarkers');
         },
         (error) => {
           console.log(error.message);
@@ -162,7 +175,7 @@ export default defineComponent({
         mapMarkers.push({
           id: hub.id,
           name: hub.name,
-          distance: haversine(location, store.state.myLocation.position),
+          distance: 0,
           position: location,
           active: false,
           icon: store.state.mapMarkerIcon,
@@ -170,16 +183,17 @@ export default defineComponent({
         });
       }
 
-      store.commit('initMapMarkers', sortMapMarkers(mapMarkers));
+      store.commit('initMapMarkers', mapMarkers);
+      store.commit('sortMapMarkers');
     };
 
-    const sortMapMarkers = (mapMarkers) => {
-      mapMarkers = mapMarkers.sort((a, b) => a.distance - b.distance);
-      mapMarkers = mapMarkers.map((marker, index) => ({
-        ...marker,
-        label: String.fromCharCode(65 + index),
-      }));
-      return mapMarkers;
+    const panToMap = (lat, lng) => {
+      if (mapRef.value?.ready) {
+        mapRef.value.map.panTo({
+          lat: lat,
+          lng: lng,
+        });
+      }
     };
 
     const onMapMarkerClick = (key) => {
@@ -190,21 +204,21 @@ export default defineComponent({
     };
 
     watchEffect(() => {
-      if (mapRef.value?.ready) {
-        mapRef.value.map.panTo({
-          lat: store.state.myLocation.position.lat,
-          lng: store.state.myLocation.position.lng,
-        });
-      }
+      panToMap(
+        store.state.myLocation.position.lat,
+        store.state.myLocation.position.lng
+      );
     });
 
     onMounted(() => {
       if (process.env.GOOGLE_MAP_KEY === '') {
-        alert('Please config your GOOGLE_MAP_KEY at line 81 in quasar.config.js file!');
+        alert(
+          'Please config your GOOGLE_MAP_KEY at line 81 in quasar.config.js file!'
+        );
       }
 
-      initCurrentPosition();
       initMapMarkers();
+      initCurrentPosition();
     });
 
     return {
